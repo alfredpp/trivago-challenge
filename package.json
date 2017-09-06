@@ -1,0 +1,24 @@
+{
+  "name": "trivago-challenge",
+  "version": "1.0.0",
+  "description": "Small application to read CSV file, validate and show output",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Alfred Paul",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "^1.17.2",
+    "easyxml": "^2.0.1",
+    "express": "^4.15.4",
+    "express-formidable": "^1.0.0",
+    "express-handlebars": "^3.0.0",
+    "fast-csv": "^2.4.0",
+    "fs": "0.0.1-security",
+    "google-libphonenumber": "^3.0.3",
+    "lodash": "^4.17.4",
+    "phone": "^1.0.12",
+    "utf8": "^2.1.2"
+  }
+}
