@@ -1,5 +1,12 @@
 <div class="row">
   <div class="upload-form">
+    {{#if messages}}
+      {{#each messages}}
+        <div class="alert alert-{{type}}">
+          {{message}}
+        </div>
+      {{/each}}
+    {{/if}}
     <form method="post" action="/upload" enctype="multipart/form-data">
       <div class="form-group">
         <h1>Upload File</h1>
@@ -9,22 +16,23 @@
       <div class="form-group">
         <p>Please select the output formats</p>
         <label class="checkbox">
-          <input type="checkbox" name="outputFormat" value="xml">XML
+          <input type="checkbox" name="outputFormat[xml]" value="xml">XML
         </label>
         <label class="checkbox">
-          <input type="checkbox" name="outputFormat" value="json">JSON
+          <input type="checkbox" name="outputFormat[json]" value="json">JSON
         </label>
         <label class="checkbox">
-          <input type="checkbox" name="outputFormat" value="html">HTML
+          <input type="checkbox" name="outputFormat[html]" value="csv">CSV
         </label>
       </div>
       <button type="submit" class="btn btn-primary">Submit</button>
-      <br>
-      {{#if message}}
-      <div class="alert alert-danger">
-        {{message}}
-      </div>
-      {{/if}}
     </form>
+    <div class="output-files">
+      {{#if files}}
+        {{#each}}
+          <a href="{{ path }}">{{ fileType }}</a>
+        {{/each}}
+      {{/if}}
+    </div>
   </div>
 </div>

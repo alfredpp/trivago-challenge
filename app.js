@@ -1,11 +1,16 @@
+"use strict";
+
 var http = require('http');
 var formidable = require('express-formidable');
 var express = require('express');
 var handlebars = require('express-handlebars');
 var csv = require('fast-csv');
+var path = require('path');
 var fs = require('fs');
+var json2csv = require('json2csv');
 var utf8 = require('utf8');
 var EasyXml = require('easyxml');
+var bodyParser = require('body-parser');
 var pnf = require('google-libphonenumber').PhoneNumberFormat;
 var phoneUtil = require('google-libphonenumber').PhoneNumberUtil.getInstance();
 
@@ -20,8 +25,10 @@ app.engine('hbs', handlebars({
 
 app.set('view engine', 'hbs');
 app.set('views', './views');
-app.use('/static', express.static('public'));
-app.use(formidable());
+app.use(express.static('public'));
+app.use(formidable({
+  multiples: true
+}));
 
 app.get('/', (req, res) => {
   res.render('home');
@@ -29,10 +36,19 @@ app.get('/', (req, res) => {
 
 app.post('/upload', (req, res) => {
   var readData = [];
-  var data = {};
-  console.log(req.files.myFile.path);
+  var data = {
+    messages: [],
+    files: []
+  };
+  var files = [];
+  var messages = [];
+  var str = '';
+  var uploadLocation = path.join(__dirname, 'public/uploads');
+  var fileName = '';
+  var outputFiles = [];
   if (req.files.myFile.type === 'text/csv') {
-    var stream = fs.createReadStream('./static/uploads/hotels.csv');
+    var stream = fs.createReadStream(req.files.myFile.path);
+    fileName = path.parse(req.files.myFile.name).name;
     var csvStream = csv
       .parse({
         headers: true,
@@ -48,7 +64,7 @@ app.post('/upload', (req, res) => {
             var phoneNumber = phoneUtil.parse(data.phone, 'US');
             data.phone = phoneUtil.format(phoneNumber, pnf.INTERNATIONAL);
         } catch (e) {
-          console.log(data.phone + ' does not have a valid country code.');
+          // console.log(data.phone + ' does not have a valid country code.');
         }
         return data;
       })
@@ -56,15 +72,58 @@ app.post('/upload', (req, res) => {
         readData.push(data);
       })
       .on("end", function(){
-        console.log("done");
-        res.set('Content-Type', 'text/xml');
-        var str = convertToXML(readData);
-        res.send(str);
+        console.log("Parsing done");
+
+        // Generate different file texts according to the user selection
+        _.values(req.fields).forEach((field) => {
+          switch (field) {
+            case 'xml':
+              str = convertToXML(readData);
+              break;
+            case 'json':
+              str = JSON.stringify(readData);
+              break;
+            case 'csv':
+              str = convertToCSV(readData);
+              break;
+          }
+          var savedFileName = fileName + Date.now() + '.' + field;
+          var destFile = path.format({
+            dir: uploadLocation,
+            base: savedFileName,
+          });
+          fs.writeFile(destFile, str, (err) => {
+            if (err) {
+              throw err;
+            }
+            else {
+              // console.log('The file has been saved in ' + destFile);
+            }
+          });
+          messages.push({
+            type: 'success',
+            message: field + ' file is written in ' +  destFile
+          });
+          files.push({
+            fileType: field,
+            path: '/uploads/' + savedFileName,
+          });
+          console.log(files);
+          console.log(messages);
+        });
       });
+
     stream.pipe(csvStream);
+    data.messages = messages;
+    data.files = files;
+    console.log(data);
+    res.render('home', data);
   }
   else {
-    data.message = 'Invalid File type';
+    data.messages.push({
+      type: 'danger',
+      message: 'Invalid File type'
+    });
     res.render('home', data);
   }
 
@@ -77,8 +136,15 @@ function convertToXML(data) {
     dateFormat: 'ISO',
     manifest: true
   });
-
   return serializer.render({hotels: data});
+}
+
+function convertToCSV(data) {
+  var csvHeaders = _.keys(_.first(data));
+  return json2csv({
+    data: data,
+    fields: csvHeaders
+  });
 }
 
 app.listen(4000, function() {
