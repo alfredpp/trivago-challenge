@@ -13,8 +13,8 @@ var EasyXml = require('easyxml');
 var bodyParser = require('body-parser');
 var pnf = require('google-libphonenumber').PhoneNumberFormat;
 var phoneUtil = require('google-libphonenumber').PhoneNumberUtil.getInstance();
-
 var _ = require('lodash');
+
 var app = express();
 
 app.engine('hbs', handlebars({
@@ -40,17 +40,17 @@ app.post('/upload', (req, res) => {
     messages: [],
     files: []
   };
-  var files = [];
   var messages = [];
+  var files = [];
   var str = '';
   var uploadLocation = path.join(__dirname, 'public/uploads');
   var fileName = '';
-  var outputFiles = [];
-  if (req.files.myFile.type === 'text/csv') {
+  if (req.files.myFile.type === 'text/csv' && _.isEmpty(req.fields) !== true) {
     var stream = fs.createReadStream(req.files.myFile.path);
     fileName = path.parse(req.files.myFile.name).name;
+
     var csvStream = csv
-      .parse({
+      .fromStream(stream, {
         headers: true,
         ignoreEmpty: true
       })
@@ -64,7 +64,7 @@ app.post('/upload', (req, res) => {
             var phoneNumber = phoneUtil.parse(data.phone, 'US');
             data.phone = phoneUtil.format(phoneNumber, pnf.INTERNATIONAL);
         } catch (e) {
-          // console.log(data.phone + ' does not have a valid country code.');
+          console.log(data.phone + ' does not have a valid country code.');
         }
         return data;
       })
@@ -97,38 +97,42 @@ app.post('/upload', (req, res) => {
               throw err;
             }
             else {
-              // console.log('The file has been saved in ' + destFile);
+              console.log('The file has been saved in /uploads/' + savedFileName);
             }
           });
+
           messages.push({
             type: 'success',
-            message: field + ' file is written in ' +  destFile
+            message: field + ' file is written in /uploads/' +  savedFileName
           });
           files.push({
             fileType: field,
             path: '/uploads/' + savedFileName,
           });
-          console.log(files);
-          console.log(messages);
         });
-      });
 
-    stream.pipe(csvStream);
-    data.messages = messages;
-    data.files = files;
-    console.log(data);
-    res.render('home', data);
+        data.messages = messages;
+        data.files = files;
+        return res.render('home', data);
+      });
+  }
+  else if (_.isEmpty(req.fields)) {
+    data.messages.push({
+      type: 'danger',
+      message: 'Please select some output formats'
+    });
+    return res.render('home', data);
   }
   else {
     data.messages.push({
       type: 'danger',
       message: 'Invalid File type'
     });
-    res.render('home', data);
+    return res.render('home', data);
   }
-
 });
 
+// Function to convert javascript object to XML.
 function convertToXML(data) {
   var serializer = new EasyXml({
     singularize: true,
@@ -139,6 +143,7 @@ function convertToXML(data) {
   return serializer.render({hotels: data});
 }
 
+// Function to convert javascript object to CSV.
 function convertToCSV(data) {
   var csvHeaders = _.keys(_.first(data));
   return json2csv({
